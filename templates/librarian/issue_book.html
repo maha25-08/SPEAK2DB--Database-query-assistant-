@@ -1,0 +1,241 @@
+{% extends "librarian/base_librarian.html" %}
+
+{% block title %}Issue Book{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>Issue Book
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="student_id" class="form-label">Student ID</label>
+                                    <input type="text" class="form-control" id="student_id" name="student_id" 
+                                           placeholder="Enter student ID" required>
+                                    <small class="text-muted">Enter the student's ID number</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="book_id" class="form-label">Book ID</label>
+                                    <input type="text" class="form-control" id="book_id" name="book_id" 
+                                           placeholder="Enter book ID" required>
+                                    <small class="text-muted">Enter the book's ID number</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-check me-2"></i>Issue Book
+                                </button>
+                                <a href="{{ url_for('librarian.librarian_dashboard') }}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Information Card -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-left border-info border-3">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Important Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="me-3">
+                                    <div class="bg-primary text-white rounded-circle p-3">
+                                        <i class="fas fa-calendar-day fa-lg"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 text-primary">Issue Date</h6>
+                                    <p class="mb-0 text-muted">
+                                        <strong>Today's date will be automatically set</strong><br>
+                                        <small>Current date: Current date</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="me-3">
+                                    <div class="bg-success text-white rounded-circle p-3">
+                                        <i class="fas fa-clock fa-lg"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 text-success">Due Date</h6>
+                                    <p class="mb-0 text-muted">
+                                        <strong>14 days from issue date</strong><br>
+                                        <small>Standard borrowing period</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="me-3">
+                                    <div class="bg-warning text-white rounded-circle p-3">
+                                        <i class="fas fa-exclamation-triangle fa-lg"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 text-warning">Important</h6>
+                                    <p class="mb-0 text-muted">
+                                        <strong>Verify book availability</strong><br>
+                                        <small>Check before issuing</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Information -->
+                    <div class="alert alert-info mt-3">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-lightbulb me-2"></i>Quick Tips
+                        </h6>
+                        <ul class="mb-0">
+                            <li>Always verify the book is available before issuing</li>
+                            <li>Check if the student has any overdue books or unpaid fines</li>
+                            <li>Books are automatically due 14 days from the issue date</li>
+                            <li>Issue date is set to today's date automatically</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Current Status -->
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-book me-2"></i>Book Status
+                                    </h6>
+                                    <p class="card-text">
+                                        <small class="text-muted">Verify the book has available copies before issuing</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-user me-2"></i>Student Status
+                                    </h6>
+                                    <p class="card-text">
+                                        <small class="text-muted">Check for overdue books or unpaid fines</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus on student_id field
+    document.getElementById('student_id').focus();
+    
+    // Add enter key navigation between fields
+    document.getElementById('student_id').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('book_id').focus();
+        }
+    });
+    
+    document.getElementById('book_id').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.querySelector('button[type="submit"]').click();
+        }
+    });
+});
+</script>
+
+<style>
+    .border-left {
+        border-left-width: 4px !important;
+    }
+    
+    .border-info {
+        border-left-color: #17a2b8 !important;
+    }
+    
+    .rounded-circle {
+        border-radius: 50% !important;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transition: all 0.2s ease;
+    }
+    
+    .alert-heading {
+        color: #0c5460;
+        font-weight: 600;
+    }
+    
+    .bg-light {
+        background-color: #f8f9fa !important;
+    }
+    
+    .card-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .text-primary {
+        color: #007bff !important;
+    }
+    
+    .text-success {
+        color: #28a745 !important;
+    }
+    
+    .text-warning {
+        color: #ffc107 !important;
+    }
+    
+    .me-3 {
+        margin-right: 1rem !important;
+    }
+    
+    .mb-1 {
+        margin-bottom: 0.25rem !important;
+    }
+    
+    .mb-0 {
+        margin-bottom: 0 !important;
+    }
+</style>
+{% endblock %}

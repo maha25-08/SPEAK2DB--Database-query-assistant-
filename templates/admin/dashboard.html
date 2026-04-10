@@ -1,0 +1,321 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-number">{{ dashboard.stats.total_users }}</div>
+            <div class="stat-label">Total Users</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" style="background: linear-gradient(135deg, #4CAF50, #8BC34A);">
+            <div class="stat-number">{{ dashboard.stats.active_sessions }}</div>
+            <div class="stat-label">Active Sessions</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" style="background: linear-gradient(135deg, #FF9800, #FFC107);">
+            <div class="stat-number">{{ dashboard.stats.failed_queries }}</div>
+            <div class="stat-label">Failed Queries</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" style="background: linear-gradient(135deg, #F44336, #E91E63);">
+            <div class="stat-number">{{ dashboard.stats.blocked_queries }}</div>
+            <div class="stat-label">Blocked Queries</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-2">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">System Overview</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div style="background-color: var(--bg-secondary); padding: 20px; border-radius: 8px;">
+                            <h6 style="color: var(--primary-btn); margin-bottom: 15px;">Most Active Users</h6>
+                            <div class="list-group list-group-flush">
+                                {% for user_stat in dashboard.most_active_users %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center" style="background-color: transparent; border-color: var(--border-color); color: var(--text-primary);">
+                                    <span>{{ user_stat.user_id }}</span>
+                                    <span class="badge" style="background-color: var(--primary-btn);">{{ user_stat.query_count }} queries</span>
+                                </div>
+                                {% else %}
+                                <div class="text-muted">No query activity yet.</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div style="background-color: var(--bg-secondary); padding: 20px; border-radius: 8px;">
+                            <h6 style="color: var(--warning-btn); margin-bottom: 15px;">AI Usage Statistics</h6>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Hybrid Queries</span>
+                                <strong>{{ dashboard.llm_usage.hybrid_queries }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Rule-based Queries</span>
+                                <strong>{{ dashboard.llm_usage.rule_based_queries }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>LLM Failures</span>
+                                <strong>{{ dashboard.llm_usage.llm_failures }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div style="background-color: var(--bg-secondary); padding: 20px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 2rem; font-weight: 700; color: var(--primary-btn);">{{ dashboard.stats.total_students }}</div>
+                            <div style="color: var(--text-secondary);">Students</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div style="background-color: var(--bg-secondary); padding: 20px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 2rem; font-weight: 700; color: var(--secondary-btn);">{{ dashboard.stats.total_faculty }}</div>
+                            <div style="color: var(--text-secondary);">Faculty</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div style="background-color: var(--bg-secondary); padding: 20px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 2rem; font-weight: 700; color: var(--danger-btn);">{{ dashboard.stats.unauthorized_attempts }}</div>
+                            <div style="color: var(--text-secondary);">Unauthorized Attempts</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Admin Query Console</h5>
+            </div>
+            <div class="card-body">
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">Execute administrative queries with current AI/Ollama settings and role permissions.</p>
+                
+                <div class="mb-3">
+                    <textarea id="queryInput" class="form-control" rows="3" placeholder="Try: show all activity logs or list users with failed queries"></textarea>
+                </div>
+                
+                <div class="d-flex gap-2 flex-wrap mb-3">
+                    <button id="queryBtn" class="btn btn-primary" onclick="submitQuery()">
+                        <i class="fas fa-play me-2"></i>Run Query
+                    </button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('queryInput').value=''">
+                        <i class="fas fa-eraser me-2"></i>Clear
+                    </button>
+                    <button id="micBtn" type="button" class="btn btn-secondary" onclick="toggleMic()">
+                        <i class="fas fa-microphone me-2"></i>Voice
+                    </button>
+                </div>
+
+                <div id="clarificationCard" style="display: none; background-color: rgba(0, 191, 166, 0.1); border: 1px solid var(--primary-btn); border-radius: 8px; padding: 16px; margin-top: 16px;">
+                    <p style="font-weight: 600; margin-bottom: 12px; color: var(--primary-btn);">
+                        <i class="fas fa-circle-question me-2"></i><span id="clarificationQuestion"></span>
+                    </p>
+                    <div id="clarificationOptions"></div>
+                </div>
+
+                <div id="resultsSection" style="display: none; margin-top: 20px;">
+                    <div class="d-flex gap-2 align-items-center mb-3">
+                        <span class="badge" style="background-color: var(--primary-btn);" id="rowCountBadge"></span>
+                        <span class="badge" style="background-color: var(--secondary-btn);" id="generatorBadge"></span>
+                    </div>
+                    
+                    <pre id="sqlCode" style="background-color: var(--bg-secondary); color: var(--text-primary); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color); overflow-x: auto;"></pre>
+                    
+                    <div class="table-responsive mt-3">
+                        <table class="table table-hover">
+                            <thead id="tableHead"></thead>
+                            <tbody id="tableBody"></tbody>
+                        </table>
+                    </div>
+                    
+                    <div id="noResults" style="display: none; color: var(--text-secondary); text-align: center; padding: 20px;">
+                        No results found.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">System Status</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span>AI Query Processing</span>
+                    <span class="badge {% if dashboard.settings.ai_query_enabled %}text-bg-success{% else %}text-bg-danger{% endif %}">
+                        {% if dashboard.settings.ai_query_enabled %}ON{% else %}OFF{% endif %}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span>Ollama SQL Generation</span>
+                    <span class="badge {% if dashboard.settings.ollama_sql_enabled %}text-bg-success{% else %}text-bg-danger{% endif %}">
+                        {% if dashboard.settings.ollama_sql_enabled %}ON{% else %}OFF{% endif %}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span>Voice Input</span>
+                    <span class="badge {% if dashboard.settings.voice_input_enabled %}text-bg-success{% else %}text-bg-danger{% endif %}">
+                        {% if dashboard.settings.voice_input_enabled %}ON{% else %}OFF{% endif %}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Max Query Limit</span>
+                    <span class="badge" style="background-color: var(--primary-btn);">{{ dashboard.settings.max_query_result_limit }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Recent Security Events</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for event in dashboard.security_events[:6] %}
+                    <div class="list-group-item" style="background-color: transparent; border-color: var(--border-color); color: var(--text-primary); margin-bottom: 8px; border-radius: 8px;">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div style="font-weight: 600;">{{ event.event_type }}</div>
+                                <div style="font-size: 0.85rem; color: var(--text-secondary);">{{ event.timestamp }}</div>
+                                <div style="font-size: 0.9rem;">{{ event.details }}</div>
+                            </div>
+                            <span class="badge bg-{{ 'danger' if event.severity == 'HIGH' else 'warning' if event.severity == 'MEDIUM' else 'info' }}">{{ event.severity }}</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-muted">No security events recorded.</div>
+                    {% endfor %}
+                </div>
+                
+                {% if security_events|length > 6 %}
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('admin_security.security') }}" class="btn btn-secondary btn-sm">View All Events</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="loadingOverlay" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8); z-index: 9999; color: white; align-items: center; justify-content: center; flex-direction: column;">
+    <div class="spinner-border text-light mb-3" role="status"></div>
+    <div>Processing query...</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function submitQuery() {
+        const queryInput = document.getElementById('queryInput');
+        const query = queryInput.value.trim();
+        
+        if (!query) {
+            alert('Please enter a query');
+            return;
+        }
+
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const resultsSection = document.getElementById('resultsSection');
+        
+        loadingOverlay.style.display = 'flex';
+        
+        fetch('/query', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query: query })
+        })
+        .then(response => response.json())
+        .then(data => {
+            loadingOverlay.style.display = 'none';
+            
+            if (data.success) {
+                displayResults(data);
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error occurred'));
+            }
+        })
+        .catch(error => {
+            loadingOverlay.style.display = 'none';
+            alert('Network error: ' + error.message);
+        });
+    }
+
+    function displayResults(result) {
+        const resultsSection = document.getElementById('resultsSection');
+        const sqlCode = document.getElementById('sqlCode');
+        const tableHead = document.getElementById('tableHead');
+        const tableBody = document.getElementById('tableBody');
+        const rowCountBadge = document.getElementById('rowCountBadge');
+        const generatorBadge = document.getElementById('generatorBadge');
+        const noResults = document.getElementById('noResults');
+
+        // Clear previous results
+        tableHead.innerHTML = '';
+        tableBody.innerHTML = '';
+
+        // Set badges
+        rowCountBadge.textContent = `${result.data.length} rows`;
+        generatorBadge.textContent = `Generator: ${result.generator || 'Unknown'}`;
+
+        // Set SQL code
+        sqlCode.textContent = result.sql || 'No SQL generated';
+
+        if (result.data && result.data.length > 0) {
+            // Create table header
+            const headers = Object.keys(result.data[0]);
+            const headerRow = document.createElement('tr');
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header.replace(/_/g, ' ').toUpperCase();
+                headerRow.appendChild(th);
+            });
+            tableHead.appendChild(headerRow);
+
+            // Create table body
+            result.data.forEach(row => {
+                const tr = document.createElement('tr');
+                headers.forEach(header => {
+                    const td = document.createElement('td');
+                    td.textContent = row[header] || '';
+                    tr.appendChild(td);
+                });
+                tableBody.appendChild(tr);
+            });
+
+            noResults.style.display = 'none';
+        } else {
+            noResults.style.display = 'block';
+        }
+
+        resultsSection.style.display = 'block';
+    }
+
+    function toggleMic() {
+        // Placeholder for voice input functionality
+        alert('Voice input functionality would be implemented here');
+    }
+
+    // Handle Enter key in query input
+    document.getElementById('queryInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            submitQuery();
+        }
+    });
+</script>
+{% endblock %}

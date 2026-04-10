@@ -1,0 +1,178 @@
+"""
+Miscellaneous view routes for SPEAK2DB
+(analytics, recommendations, students, issued books, fines, user management, system stats).
+"""
+import logging
+from flask import Blueprint, render_template, session, redirect, url_for
+
+from db.connection import get_db_connection, MAIN_DB
+from utils.decorators import require_roles
+from utils.helpers import get_library_stats
+
+logger = logging.getLogger(__name__)
+
+views_bp = Blueprint("views", __name__)
+
+
+# ---------------------------------------------------------------------------
+# Generic dashboard redirect
+# ---------------------------------------------------------------------------
+
+@views_bp.route("/dashboard")
+def dashboard_redirect():
+    """Redirect to the appropriate role-specific dashboard."""
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    role = session.get("role", "Student")
+    if role == "Administrator":
+        return redirect(url_for("dashboard.admin_dashboard"))
+    if role == "Librarian":
+        return redirect(url_for("librarian.librarian_dashboard"))
+    if role == "Faculty":
+        return redirect(url_for("dashboard.faculty_dashboard"))
+    return redirect(url_for("index"))
+
+
+# ---------------------------------------------------------------------------
+# Analytics (Admin and Librarian)
+# ---------------------------------------------------------------------------
+
+@views_bp.route("/analytics")
+@require_roles("Administrator", "Librarian")
+def analytics():
+    """Analytics view – Administrator and Librarian."""
+    print("ROLE:", session.get("role"))
+    user_role = session.get("role", "Student")
+    user_id = session["user_id"]
+
+    books_per_category = []
+    issues_per_month = []
+    try:
+        conn = get_db_connection(MAIN_DB)
+        books_per_category = conn.execute(
+            "SELECT category, COUNT(*) as count FROM Books GROUP BY category ORDER BY count DESC"
+        ).fetchall()
+        issues_per_month = conn.execute(
+            "SELECT strftime('%Y-%m', issue_date) as month, COUNT(*) as count "
+            "FROM Issued GROUP BY month ORDER BY month DESC LIMIT 12"
+        ).fetchall()
+        conn.close()
+    except Exception as exc:
+        logger.error("analytics DB error: %s", exc)
+
+    return render_template(
+        "analytics.html",
+        user=user_id,
+        role=user_role,
+        books_per_category=[dict(r) for r in books_per_category],
+        issues_per_month=[dict(r) for r in issues_per_month],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Recommendations (Admin only)
+# ---------------------------------------------------------------------------
+
+@views_bp.route("/recommendations")
+@require_roles("Administrator")
+def recommendations():
+    """Recommendations view – Administrator only."""
+    user_role = session.get("role", "Student")
+    user_id = session["user_id"]
+    users = []
+    students = []
+    try:
+        conn = get_db_connection(MAIN_DB)
+        users = conn.execute("SELECT * FROM Users LIMIT 500").fetchall()
+        students = conn.execute(
+            "SELECT id, roll_number, name, branch, year FROM Students ORDER BY name LIMIT 500"
+        ).fetchall()
+        conn.close()
+    except Exception as exc:
+        logger.error("recommendations DB error: %s", exc)
+
+    return render_template(
+        "admin_dashboard.html",
+        role=user_role,
+        user=user_id,
+        stats={},
+        recent_activity=[],
+        users=users,
+        students=students,
+        page="user_management",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Students view (Librarian / Admin)
+# ---------------------------------------------------------------------------
+
+@views_bp.route("/students")
+@require_roles("Librarian", "Faculty", "Administrator")
+def students_view():
+    """All students – Librarian/Administrator only."""
+    user_id = session["user_id"]
+    user_role = session.get("role")
+
+    return render_template(
+        "index.html",
+        user=user_id,
+        role=user_role,
+        user_info={"username": user_id, "role": user_role, "permissions": []},
+        page_title="All Students",
+        dashboard_data=get_library_stats(),
+        prefill_query="show all students",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Issued books view (Librarian / Admin)
+# ---------------------------------------------------------------------------
+
+@views_bp.route("/issued_books")
+@require_roles("Librarian", "Faculty", "Administrator")
+def issued_books_view():
+    """Issued books overview – Librarian/Administrator only."""
+    user_id = session["user_id"]
+    user_role = session.get("role")
+
+    return render_template(
+        "index.html",
+        user=user_id,
+        role=user_role,
+        user_info={"username": user_id, "role": user_role, "permissions": []},
+        page_title="Issued Books",
+        dashboard_data=get_library_stats(),
+        prefill_query="show all currently issued books",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Fine management (Librarian / Admin)
+# ---------------------------------------------------------------------------
+
+@views_bp.route("/fine_management")
+@require_roles("Librarian", "Faculty", "Administrator")
+def fine_management_view():
+    """Fine management – Librarian/Administrator only."""
+    user_id = session["user_id"]
+    user_role = session.get("role")
+
+    return render_template(
+        "index.html",
+        user=user_id,
+        role=user_role,
+        user_info={"username": user_id, "role": user_role, "permissions": []},
+        page_title="Fine Management",
+        dashboard_data=get_library_stats(),
+        prefill_query="show all unpaid fines",
+    )
+
+
+@views_bp.route("/fines")
+@require_roles("Librarian", "Faculty", "Administrator")
+def fines_view():
+    """Fines alias – redirects to fine_management."""
+    logger.info("fines_view accessed by role: %s", session.get("role"))
+    return redirect(url_for("views.fine_management_view"))

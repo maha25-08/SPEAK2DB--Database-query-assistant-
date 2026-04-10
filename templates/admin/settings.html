@@ -1,0 +1,653 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}System Settings{% endblock %}
+
+{% block page_title %}System Settings{% endblock %}
+
+{% block content %}
+<style>
+/* Dark theme compatible settings page styles */
+.settings-section {
+    color: #ffffff !important;
+    background-color: #121212;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.settings-section h5 {
+    color: #ffffff !important;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.settings-section label {
+    color: #ffffff !important;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.settings-section .form-label {
+    color: #ffffff !important;
+}
+
+.settings-section p {
+    color: #cccccc !important;
+    margin-bottom: 15px;
+}
+
+.settings-section .form-control,
+.settings-section .form-select {
+    background-color: #2d2d2d !important;
+    border: 1px solid #444;
+    color: #ffffff !important;
+}
+
+.settings-section .form-control:focus,
+.settings-section .form-select:focus {
+    background-color: #3d3d3d !important;
+    border-color: #007bff;
+    color: #ffffff !important;
+}
+
+.settings-section .card {
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+}
+
+.settings-section .card-header {
+    background-color: #2d2d2d;
+    border-bottom: 1px solid #444;
+}
+
+.settings-section .text-secondary {
+    color: #cccccc !important;
+}
+
+.settings-section .btn {
+    color: #ffffff !important;
+}
+
+.settings-section .btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.settings-section .btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.settings-section .btn-warning {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529 !important;
+}
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-0" style="color: #ffffff !important;">System Settings</h4>
+        <p class="text-secondary" style="color: #cccccc !important;">Configure system-wide settings and preferences</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-secondary" onclick="exportSettings()">
+            <i class="fas fa-download me-2"></i>Export
+        </button>
+        <button class="btn btn-warning" onclick="resetDefaults()">
+            <i class="fas fa-undo me-2"></i>Reset to Defaults
+        </button>
+    </div>
+</div>
+
+<form method="POST" action="{{ url_for('admin_settings.update_settings') }}" id="settingsForm">
+    <div class="row g-4">
+        <!-- System Settings -->
+        <div class="col-lg-6">
+            <div class="card settings-section">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-cogs me-2"></i>System Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <label class="form-label">Maximum Query Results</label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   class="form-control" 
+                                   name="max_query_result_limit" 
+                                   value="{{ settings.get("max_query_result_limit", 100) }}" 
+                                   min="1" 
+                                   max="10000">
+                            <span class="input-group-text">rows</span>
+                        </div>
+                        <div class="form-text text-muted">Limit the number of results returned by queries (1-10000)</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Session Timeout</label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   class="form-control" 
+                                   name="session_timeout" 
+                                   value="{{ settings.get("session_timeout", 30) }}" 
+                                   min="5" 
+                                   max="480">
+                            <span class="input-group-text">minutes</span>
+                        </div>
+                        <div class="form-text text-muted">Session timeout duration in minutes (5-480)</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">System Maintenance Mode</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="maintenance_mode" 
+                                   name="maintenance_mode" 
+                                   {% if settings.get("maintenance_mode", False) %}checked{% endif %}>
+                            <label class="form-check-label" for="maintenance_mode">
+                                Enable maintenance mode
+                            </label>
+                        </div>
+                        <div class="form-text text-muted">When enabled, only administrators can access the system</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Debug Mode</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="debug_mode" 
+                                   name="debug_mode" 
+                                   {% if settings.get("debug_mode", False) %}checked{% endif %}>
+                            <label class="form-check-label" for="debug_mode">
+                                Enable debug mode
+                            </label>
+                        </div>
+                        <div class="form-text text-muted">Show detailed error messages and debug information</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Settings -->
+        <div class="col-lg-6">
+            <div class="card settings-section">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-robot me-2"></i>AI & Language Processing
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <label class="form-label">AI Query Processing</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="ai_query_enabled" 
+                                   name="ai_query_enabled" 
+                                   {% if settings.get("ai_query_enabled", False) %}checked{% endif %}>
+                            <label class="form-check-label" for="ai_query_enabled">
+                                Enable AI-powered query processing
+                            </label>
+                        </div>
+                        <div class="form-text text-muted">Allow natural language to SQL conversion using AI</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Ollama SQL Generation</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="ollama_sql_enabled" 
+                                   name="ollama_sql_enabled" 
+                                   {% if settings.get("ollama_sql_enabled", False) %}checked{% endif %}>
+                            <label class="form-check-label" for="ollama_sql_enabled">
+                                Enable Ollama SQL generation
+                            </label>
+                        </div>
+                        <div class="form-text text-muted">Use local Ollama model for SQL query generation</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Voice Input</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="voice_input_enabled" 
+                                   name="voice_input_enabled" 
+                                   {% if settings.get("voice_input_enabled", False) %}checked{% endif %}>
+                            <label class="form-check-label" for="voice_input_enabled">
+                                Enable voice input
+                            </label>
+                        </div>
+                        <div class="form-text text-muted">Allow users to input queries using voice recognition</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">AI Model</label>
+                        <select class="form-select" name="ai_model" id="ai_model">
+                            <option value="gpt-3.5-turbo" {% if settings.get("ai_model", "gpt-3.5-turbo") == 'gpt-3.5-turbo' %}selected{% endif %}>GPT-3.5 Turbo</option>
+                            <option value="gpt-4" {% if settings.get("ai_model", "gpt-3.5-turbo") == 'gpt-4' %}selected{% endif %}>GPT-4</option>
+                            <option value="claude-3" {% if settings.get("ai_model", "gpt-3.5-turbo") == 'claude-3' %}selected{% endif %}>Claude-3</option>
+                            <option value="ollama" {% if settings.get("ai_model", "gpt-3.5-turbo") == 'ollama' %}selected{% endif %}>Ollama (Local)</option>
+                        </select>
+                        <div class="form-text text-muted">Select the AI model for query processing</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">API Rate Limit</label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   class="form-control" 
+                                   name="api_rate_limit" 
+                                   value="{{ settings.get("api_rate_limit", 100) or 100 }}" 
+                                   min="1" 
+                                   max="1000">
+                            <span class="input-group-text">requests/hour</span>
+                        </div>
+                        <div class="form-text text-muted">Maximum API requests per user per hour</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Settings -->
+        <div class="col-lg-6">
+            <div class="card settings-section">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-shield-alt me-2"></i>Security Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <label class="form-label">Password Policy</label>
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="password_min_length" 
+                                           name="password_min_length" 
+                                           value="8"
+                                           {% if settings.get("password_min_length", 8) >= 8 %}checked{% endif %}>
+                                    <label class="form-check-label" for="password_min_length">
+                                        Minimum 8 characters
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="password_require_uppercase" 
+                                           name="password_require_uppercase" 
+                                           {% if settings.get("password_require_uppercase", False) %}checked{% endif %}>
+                                    <label class="form-check-label" for="password_require_uppercase">
+                                        Require uppercase letter
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="password_require_numbers" 
+                                           name="password_require_numbers" 
+                                           {% if settings.get("password_require_numbers", False) %}checked{% endif %}>
+                                    <label class="form-check-label" for="password_require_numbers">
+                                        Require numbers
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="password_require_symbols" 
+                                           name="password_require_symbols" 
+                                           {% if settings.get("password_require_symbols", False) %}checked{% endif %}>
+                                    <label class="form-check-label" for="password_require_symbols">
+                                        Require special symbols
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Failed Login Attempts</label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   class="form-control" 
+                                   name="max_failed_attempts" 
+                                   value="{{ settings.get("max_failed_attempts", 5) or 5 }}" 
+                                   min="1" 
+                                   max="10">
+                            <span class="input-group-text">attempts</span>
+                        </div>
+                        <div class="form-text text-muted">Maximum failed login attempts before account lockout</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Account Lockout Duration</label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   class="form-control" 
+                                   name="lockout_duration" 
+                                   value="{{ settings.get("lockout_duration", 15) or 15 }}" 
+                                   min="5" 
+                                   max="1440">
+                            <span class="input-group-text">minutes</span>
+                        </div>
+                        <div class="form-text text-muted">Duration of account lockout after failed attempts</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Two-Factor Authentication</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="two_factor_auth" 
+                                   name="two_factor_auth" 
+                                   {% if settings.get("two_factor_auth", False) %}checked{% endif %}>
+                            <label class="form-check-label" for="two_factor_auth">
+                                Require 2FA for administrators
+                            </label>
+                        </div>
+                        <div class="form-text text-muted">Enforce two-factor authentication for admin accounts</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification Settings -->
+        <div class="col-lg-6">
+            <div class="card settings-section">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bell me-2"></i>Notifications & Alerts
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <label class="form-label">Email Notifications</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="email_notifications" 
+                                   name="email_notifications" 
+                                   {% if settings.get("email_notifications", False) %}checked{% endif %}>
+                            <label class="form-check-label" for="email_notifications">
+                                Enable email notifications
+                            </label>
+                        </div>
+                        <div class="form-text text-muted">Send system notifications via email</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Admin Email</label>
+                        <input type="email" 
+                               class="form-control" 
+                               name="admin_email" 
+                               value="{{ settings.get("admin_email", "") or '' }}" 
+                               placeholder="admin@example.com">
+                        <div class="form-text text-muted">Email address for system notifications</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Alert Events</label>
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="alert_failed_logins" 
+                                           name="alert_failed_logins" 
+                                           {% if settings.get("alert_failed_logins", False) %}checked{% endif %}>
+                                    <label class="form-check-label" for="alert_failed_logins">
+                                        Failed login attempts
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="alert_system_errors" 
+                                           name="alert_system_errors" 
+                                           {% if settings.get("alert_system_errors", False) %}checked{% endif %}>
+                                    <label class="form-check-label" for="alert_system_errors">
+                                        System errors
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="alert_security_events" 
+                                           name="alert_security_events" 
+                                           {% if settings.get("alert_security_events", False) %}checked{% endif %}>
+                                    <label class="form-check-label" for="alert_security_events">
+                                        Security events
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="alert_database_issues" 
+                                           name="alert_database_issues" 
+                                           {% if settings.get("alert_database_issues", False) %}checked{% endif %}>
+                                    <label class="form-check-label" for="alert_database_issues">
+                                        Database issues
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Button -->
+    <div class="card mt-4 settings-section">
+        <div class="card-body text-center">
+            <button type="submit" class="btn btn-primary btn-lg me-2">
+                <i class="fas fa-save me-2"></i>Save All Settings
+            </button>
+            <button type="button" class="btn btn-secondary btn-lg" onclick="testSettings()">
+                <i class="fas fa-flask me-2"></i>Test Configuration
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let hasUnsavedChanges = false;
+
+    // Track changes
+    document.querySelectorAll('input, select').forEach(element => {
+        element.addEventListener('change', function() {
+            hasUnsavedChanges = true;
+            updateSaveButton();
+        });
+    });
+
+    function updateSaveButton() {
+        const saveBtn = document.querySelector('button[type="submit"]');
+        if (hasUnsavedChanges) {
+            saveBtn.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Save Changes*';
+            saveBtn.classList.add('btn-warning');
+            saveBtn.classList.remove('btn-primary');
+        } else {
+            saveBtn.innerHTML = '<i class="fas fa-save me-2"></i>Save All Settings';
+            saveBtn.classList.remove('btn-warning');
+            saveBtn.classList.add('btn-primary');
+        }
+    }
+
+    function exportSettings() {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("admin_settings.export_settings") }}';
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    function resetDefaults() {
+        if (confirm('Are you sure you want to reset all settings to default values? This action cannot be undone.')) {
+            if (confirm('This will reset ALL system settings. Are you absolutely sure?')) {
+                fetch('{{ url_for("admin_settings.reset_settings") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Settings have been reset to defaults.');
+                        location.reload();
+                    } else {
+                        alert('Error resetting settings: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error resetting settings');
+                });
+            }
+        }
+    }
+
+    function testSettings() {
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testing...';
+        btn.disabled = true;
+
+        fetch('{{ url_for("admin_settings.test_settings") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Configuration test passed!\n\n' + data.message);
+            } else {
+                alert('Configuration test failed:\n\n' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error testing configuration');
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+
+    // Form submission
+    document.getElementById('settingsForm').addEventListener('submit', function(e) {
+        hasUnsavedChanges = false;
+        
+        // Show loading state
+        const submitBtn = document.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+        submitBtn.disabled = true;
+    });
+
+    // Warn before leaving with unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+        if (hasUnsavedChanges) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            return e.returnValue;
+        }
+    });
+
+    // Auto-save draft every 30 seconds
+    setInterval(function() {
+        if (hasUnsavedChanges && !document.hidden) {
+            // Save to localStorage as draft
+            const formData = new FormData(document.getElementById('settingsForm'));
+            const draft = {};
+            formData.forEach((value, key) => {
+                draft[key] = value;
+            });
+            localStorage.setItem('settingsDraft', JSON.stringify(draft));
+            
+            // Show subtle notification
+            const notification = document.createElement('div');
+            notification.className = 'position-fixed top-0 end-0 p-3';
+            notification.style.zIndex = '9999';
+            notification.innerHTML = `
+                <div class="toast show" role="alert">
+                    <div class="toast-body">
+                        <i class="fas fa-save me-2"></i>Settings draft saved
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        }
+    }, 30000);
+
+    // Load draft on page load
+    window.addEventListener('load', function() {
+        const draft = localStorage.getItem('settingsDraft');
+        if (draft) {
+            try {
+                const draftData = JSON.parse(draft);
+                // Populate form with draft data
+                Object.keys(draftData).forEach(key => {
+                    const element = document.querySelector(`[name="${key}"]`);
+                    if (element) {
+                        if (element.type === 'checkbox') {
+                            element.checked = draftData[key] === 'on' || draftData[key] === 'true';
+                        } else {
+                            element.value = draftData[key];
+                        }
+                    }
+                });
+                
+                // Clear draft after loading
+                localStorage.removeItem('settingsDraft');
+            } catch (error) {
+                console.log('Could not load settings draft:', error);
+            }
+        }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            document.getElementById('settingsForm').submit();
+        }
+        if (e.ctrlKey && e.key === 'r') {
+            e.preventDefault();
+            resetDefaults();
+        }
+        if (e.ctrlKey && e.key === 't') {
+            e.preventDefault();
+            testSettings();
+        }
+    });
+</script>
+{% endblock %}

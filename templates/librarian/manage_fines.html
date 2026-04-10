@@ -1,0 +1,285 @@
+{% extends "librarian/base_librarian.html" %}
+
+{% block title %}Manage Fines{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-dollar-sign me-2"></i>Manage Fines</h2>
+                <div>
+                    <form method="POST" action="{{ url_for('librarian.pay_all_fines') }}" class="d-inline">
+                        <div class="input-group">
+                            <select name="payment_method" class="form-select" required>
+                                <option value="Cash">Cash</option>
+                                <option value="Card">Card</option>
+                                <option value="Online">Online</option>
+                            </select>
+                            <button type="submit" class="btn btn-warning" 
+                                    onclick="return confirm('Are you sure you want to mark ALL unpaid fines as paid?')">
+                                <i class="fas fa-check-double me-1"></i>Mark All as Paid
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ stats.count or 0 }}</h4>
+                                    <p class="mb-0">Unpaid Fines</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">${{ "%.2f"|format(stats.total or 0) }}</h4>
+                                    <p class="mb-0">Total Amount Due</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-money-bill-wave fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ unpaid_fines|length }}</h4>
+                                    <p class="mb-0">Students with Fines</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-users fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">{{ stats.count or 0 }}</h4>
+                                    <p class="mb-0">Total Fines</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-receipt fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fines Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>Unpaid Fines</h5>
+                </div>
+                <div class="card-body">
+                    {% if unpaid_fines %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Fine ID</th>
+                                        <th>Student</th>
+                                        <th>Roll Number</th>
+                                        <th>Book</th>
+                                        <th>Amount</th>
+                                        <th>Issue Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for fine in unpaid_fines %}
+                                    <tr>
+                                        <td>{{ fine.id }}</td>
+                                        <td>
+                                            <a href="{{ url_for('librarian.student_fines', student_id=fine.student_id) }}" 
+                                               class="text-decoration-none">
+                                                {{ fine.student_name }}
+                                            </a>
+                                        </td>
+                                        <td>{{ fine.roll_number }}</td>
+                                        <td>{{ fine.book_title or 'General Fine' }}</td>
+                                        <td><span class="badge bg-danger">${{ "%.2f"|format(fine.fine_amount) }}</span></td>
+                                        <td>{{ fine.issue_date }}</td>
+                                        <td>
+                                            <form method="POST" action="{{ url_for('librarian.pay_fine', fine_id=fine.id) }}" 
+                                                  class="d-inline">
+                                                <div class="input-group input-group-sm">
+                                                    <select name="payment_method" class="form-select" required>
+                                                        <option value="Cash">Cash</option>
+                                                        <option value="Card">Card</option>
+                                                        <option value="Online">Online</option>
+                                                    </select>
+                                                    <button type="submit" class="btn btn-success btn-sm" 
+                                                            title="Mark as Paid">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <div class="mb-4">
+                                <div class="bg-success text-white rounded-circle p-4 d-inline-block">
+                                    <i class="fas fa-check-circle fa-3x"></i>
+                                </div>
+                            </div>
+                            <h5 class="text-success mb-3">No Unpaid Fines</h5>
+                            <p class="text-muted mb-4">All fines have been paid!</p>
+                            
+                            <!-- Additional Information -->
+                            <div class="row mt-4">
+                                <div class="col-md-4">
+                                    <div class="card border-left border-success border-3">
+                                        <div class="card-body">
+                                            <h6 class="text-success">
+                                                <i class="fas fa-dollar-sign me-2"></i>Cash
+                                            </h6>
+                                            <p class="mb-0">0 unpaid fines</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card border-left border-info border-3">
+                                        <div class="card-body">
+                                            <h6 class="text-info">
+                                                <i class="fas fa-money-bill-wave me-2"></i>Total Amount Due
+                                            </h6>
+                                            <p class="mb-0">$0.00</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card border-left border-primary border-3">
+                                        <div class="card-body">
+                                            <h6 class="text-primary">
+                                                <i class="fas fa-users me-2"></i>Students with Fines
+                                            </h6>
+                                            <p class="mb-0">0 students with fines</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="alert alert-success mt-4">
+                                <h6 class="alert-heading">
+                                    <i class="fas fa-info-circle me-2"></i>All Fines Processed
+                                </h6>
+                                <p class="mb-0">Great job! All fines have been successfully processed and paid.</p>
+                                <div class="mt-3">
+                                    <a href="{{ url_for('librarian.librarian_dashboard') }}" class="btn btn-primary me-2">
+                                        <i class="fas fa-tachometer-alt me-1"></i>Back to Dashboard
+                                    </a>
+                                    <a href="{{ url_for('librarian.query_console') }}" class="btn btn-info">
+                                        <i class="fas fa-database me-1"></i>View Fine History
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .border-left {
+        border-left-width: 4px !important;
+    }
+    
+    .border-success {
+        border-left-color: #28a745 !important;
+    }
+    
+    .border-info {
+        border-left-color: #17a2b8 !important;
+    }
+    
+    .border-primary {
+        border-left-color: #007bff !important;
+    }
+    
+    .rounded-circle {
+        border-radius: 50% !important;
+    }
+    
+    .alert-heading {
+        color: #155724;
+        font-weight: 600;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .table th {
+        border-top: none;
+        font-weight: 600;
+    }
+    
+    .input-group-sm {
+        max-width: 200px;
+    }
+    
+    /* Enhanced no-fines styling */
+    .success-circle {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        border: 3px solid #1e7e34;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+        }
+    }
+</style>
+{% endblock %}

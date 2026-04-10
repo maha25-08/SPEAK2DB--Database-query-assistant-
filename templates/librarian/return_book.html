@@ -1,0 +1,319 @@
+{% extends "librarian/base_librarian.html" %}
+
+{% block title %}Return Book{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-undo me-2"></i>Return Book
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="book_id" class="form-label">Book ID</label>
+                                    <input type="text" class="form-control" id="book_id" name="book_id" 
+                                           placeholder="Enter book ID" required>
+                                    <small class="text-muted">Enter the book's ID number to return</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="student_roll" class="form-label">Student Roll Number</label>
+                                    <input type="text" class="form-control" id="student_roll" name="student_roll" 
+                                           placeholder="Enter student roll number" required>
+                                    <small class="text-muted">Enter student's roll number for verification</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="student_department" class="form-label">Department</label>
+                                    <select class="form-select" id="student_department" name="student_department" required>
+                                        <option value="">Select Department</option>
+                                        <option value="Computer Science">Computer Science</option>
+                                        <option value="Electronics">Electronics</option>
+                                        <option value="Mechanical">Mechanical</option>
+                                        <option value="Civil">Civil</option>
+                                        <option value="Chemical">Chemical</option>
+                                        <option value="Electrical">Electrical</option>
+                                        <option value="Business">Business</option>
+                                        <option value="General">General</option>
+                                    </select>
+                                    <small class="text-muted">Select student's department for records</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-check me-2"></i>Return Book
+                                </button>
+                                <a href="{{ url_for('librarian.librarian_dashboard') }}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Information Card -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-left border-success border-3">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Return Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="me-3">
+                                    <div class="bg-success text-white rounded-circle p-3">
+                                        <i class="fas fa-calendar-check fa-lg"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 text-success">Return Date</h6>
+                                    <p class="mb-0 text-muted">
+                                        <strong>Today's date will be automatically set</strong><br>
+                                        <small>Current date: {{ current_date }}</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="me-3">
+                                    <div class="bg-primary text-white rounded-circle p-3">
+                                        <i class="fas fa-user fa-lg"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 text-primary">Student Information</h6>
+                                    <p class="mb-0 text-muted">
+                                        <strong>System displays student details</strong><br>
+                                        <small>Shows which student returned the book</small><br>
+                                        <small>Student ID, name, and roll number displayed</small><br>
+                                        <small>Current date: {{ current_date }}</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="me-3">
+                                    <div class="bg-info text-white rounded-circle p-3">
+                                        <i class="fas fa-history fa-lg"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 text-info">Issue History</h6>
+                                    <p class="mb-0 text-muted">
+                                        <strong>All return transactions are logged</strong><br>
+                                        <small>Complete tracking maintained</small><br>
+                                        <small class="text-info">Issue and return dates recorded</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Detailed Process Information -->
+                    <div class="alert alert-info mt-4">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-info-circle me-2"></i>Detailed Return Process
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-primary">📅 Return Date Processing</h6>
+                                <ul class="mb-3">
+                                    <li>Today's date automatically set as return date</li>
+                                    <li>System timestamp recorded for audit purposes</li>
+                                    <li>Date format: YYYY-MM-DD (standard library format)</li>
+                                    <li>Cannot be manually modified by librarian</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-success">👤 Student Information Display</h6>
+                                <ul class="mb-3">
+                                    <li>System shows student who returned the book</li>
+                                    <li>Student ID, name, and roll number displayed</li>
+                                    <li>Links to student's borrowing history</li>
+                                    <li>Shows current fine status</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-info">📜 Issue History Tracking</h6>
+                                <ul class="mb-3">
+                                    <li>All return transactions logged for tracking</li>
+                                    <li>Complete issue and return history maintained</li>
+                                    <li>Transaction ID generated for each return</li>
+                                    <li>Librarian who processed the return recorded</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-warning">⚙️ System Updates</h6>
+                                <ul class="mb-3">
+                                    <li>Book availability automatically updated</li>
+                                    <li>Book status changed to "Returned"</li>
+                                    <li>Available copies count increased</li>
+                                    <li>Student borrowing history updated</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Reference -->
+                    <div class="card bg-light mt-3">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="fas fa-clipboard-list me-2"></i>Quick Reference
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <small class="text-muted">
+                                        <strong>Return Date:</strong><br>
+                                        Automatic (Today)
+                                    </small>
+                                </div>
+                                <div class="col-md-4">
+                                    <small class="text-muted">
+                                        <strong>Student Info:</strong><br>
+                                        Auto-displayed
+                                    </small>
+                                </div>
+                                <div class="col-md-4">
+                                    <small class="text-muted">
+                                        <strong>History:</strong><br>
+                                        Fully logged
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Current Status -->
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-book me-2"></i>Book Status
+                                    </h6>
+                                    <p class="card-text">
+                                        <small class="text-muted">Book will be marked as returned</small><br>
+                                        <small>Available copies will be updated</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-clipboard-check me-2"></i>Transaction Log
+                                    </h6>
+                                    <p class="card-text">
+                                        <small class="text-muted">Return transaction recorded</small><br>
+                                        <small>Student borrowing history updated</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus on book_id field
+    document.getElementById('book_id').focus();
+    
+    // Add enter key submission
+    document.getElementById('book_id').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.querySelector('button[type="submit"]').click();
+        }
+    });
+});
+</script>
+
+<style>
+    .border-left {
+        border-left-width: 4px !important;
+    }
+    
+    .border-success {
+        border-left-color: #28a745 !important;
+    }
+    
+    .rounded-circle {
+        border-radius: 50% !important;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transition: all 0.2s ease;
+    }
+    
+    .alert-heading {
+        color: #155724;
+        font-weight: 600;
+    }
+    
+    .bg-light {
+        background-color: #f8f9fa !important;
+    }
+    
+    .card-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .text-primary {
+        color: #007bff !important;
+    }
+    
+    .text-success {
+        color: #28a745 !important;
+    }
+    
+    .text-info {
+        color: #17a2b8 !important;
+    }
+    
+    .me-3 {
+        margin-right: 1rem !important;
+    }
+    
+    .mb-1 {
+        margin-bottom: 0.25rem !important;
+    }
+    
+    .mb-0 {
+        margin-bottom: 0 !important;
+    }
+</style>
+{% endblock %}

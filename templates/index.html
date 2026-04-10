@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speak2DB - Dashboard</title>
+    <meta name="description" content="Speak2DB: NLP-Driven Multi-Database Query Assistant Dashboard">
+    <link rel="stylesheet" href="/static/css/style.css?v=14">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/js/script.js" defer></script>
+    <style>
+        /* ── Clarification card ────────────────────────────────────────── */
+        .clarification-card {
+            background: #e8f0fe;
+            border: 1px solid #c5d8f5;
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin: 1rem 0;
+        }
+        .clarification-question {
+            font-size: 1.1rem;
+            color: #1a3a6b;
+            margin-bottom: 1rem;
+        }
+        .clarification-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+        .btn-clarification {
+            background: #4a90e2;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 0.6rem 1.2rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+        .btn-clarification:hover {
+            background: #357abd;
+        }
+        /* ── Dashboard widgets ─────────────────────────────────────────── */
+        .dashboard-panel {
+            background: var(--card-bg, #1e2235);
+            border: 1px solid var(--border-color, #2d3250);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin: 1rem 0;
+        }
+        .widget-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin: 1rem 0 0.5rem;
+        }
+        .widget-card {
+            flex: 1 1 140px;
+            border-radius: 10px;
+            padding: 1rem 1.2rem;
+            text-align: center;
+            min-width: 120px;
+        }
+        .widget-icon { font-size: 1.6rem; margin-bottom: 0.3rem; }
+        .widget-value { font-size: 1.8rem; font-weight: 700; color: #fff; }
+        .widget-label { font-size: 0.8rem; color: rgba(255,255,255,0.8); margin-top: 0.2rem; }
+        .widget-blue   { background: linear-gradient(135deg, #1a5276, #2980b9); }
+        .widget-green  { background: linear-gradient(135deg, #1e8449, #27ae60); }
+        .widget-orange { background: linear-gradient(135deg, #784212, #e67e22); }
+        .widget-red    { background: linear-gradient(135deg, #922b21, #e74c3c); }
+        .widget-purple { background: linear-gradient(135deg, #6c3483, #8e44ad); }
+        .widget-table-wrap { margin-top: 1rem; overflow-x: auto; }
+        .widget-table-title { color: #e0e6ff; font-size: 0.95rem; margin-bottom: 0.5rem; }
+        .widget-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .widget-table th { background: rgba(255,255,255,0.1); color: #cdd; padding: 0.4rem 0.7rem; text-align: left; }
+        .widget-table td { border-bottom: 1px solid rgba(255,255,255,0.07); padding: 0.4rem 0.7rem; color: #bcc; }
+        /* ── Result badges ─────────────────────────────────────────────── */
+        .result-badges { display: flex; gap: 0.5rem; align-items: center; }
+        .badge { padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+        .badge-ai { background: #6c3483; color: #fff; }
+        .badge-main { background: #1a5276; color: #fff; }
+        .badge-archive { background: #784212; color: #fff; }
+        .voice-status {
+            margin-top: 0.85rem;
+            padding: 0.85rem 1rem;
+            border-radius: 10px;
+            background: #eef4ff;
+            border: 1px solid #c5d8f5;
+            color: #1a3a6b;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        .voice-status.status-listening {
+            background: #fff7e6;
+            border-color: #ffd38a;
+            color: #7a4b00;
+        }
+        .voice-status.status-error {
+            background: #fff1f0;
+            border-color: #ffb3b3;
+            color: #a61d24;
+        }
+        .voice-status.status-warning {
+            background: #fff8e1;
+            border-color: #f1d48b;
+            color: #7a5a00;
+        }
+        .voice-status .btn-clarification {
+            margin-left: 0.6rem;
+        }
+        .voice-status-note {
+            display: block;
+            margin-top: 0.6rem;
+            font-size: 0.88rem;
+            color: #4a5d7a;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard">
+        <!-- ===== SIDEBAR ===== -->
+        <aside class="sidebar" id="sidebar">
+            <!-- Toggle Button -->
+            <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+                <span id="toggleIcon">◀</span>
+            </button>
+            <div class="sidebar-brand">
+                <div class="brand-icon">🗃️</div>
+                <div class="brand-text">
+                    <h2>Speak2DB</h2>
+                    <span>Query Assistant</span>
+                </div>
+            </div>
+
+            <!-- User Card -->
+            <div class="user-card">
+                <div class="user-info">
+                    <div class="user-avatar">{{ user[0]|upper if user else '?' }}</div>
+                    <div>
+                        <div class="user-name">{{ user }}</div>
+                        <span class="role-badge role-{{ role.lower() }}">Logged in as: {{ role|upper }}</span>
+                    </div>
+                </div>
+                <a href="{{ url_for('logout') }}" class="btn-logout">⏻ Sign Out</a>
+            </div>
+
+            <!-- Role-Based Navigation -->
+            <div class="nav-section">
+                <div class="section-title">📍 Navigation</div>
+                <nav class="modern-nav">
+                    {% if role == 'Student' %}
+                    <a href="{{ url_for('dashboard.student_dashboard') }}" class="nav-link">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">My Dashboard</span>
+                    </a>
+                    <a href="{{ url_for('index') }}" class="nav-link active">
+                        <span class="nav-icon">🔍</span>
+                        <span class="nav-text">Query</span>
+                    </a>
+                    {% elif role == 'Librarian' %}
+                    <a href="{{ url_for('librarian.librarian_dashboard') }}" class="nav-link">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">Dashboard</span>
+                    </a>
+                    <a href="{{ url_for('views.students_view') }}" class="nav-link">
+                        <span class="nav-icon">👥</span>
+                        <span class="nav-text">Students</span>
+                    </a>
+                    <a href="{{ url_for('views.issued_books_view') }}" class="nav-link">
+                        <span class="nav-icon">📖</span>
+                        <span class="nav-text">Issued Books</span>
+                    </a>
+                    <a href="{{ url_for('views.fine_management_view') }}" class="nav-link">
+                        <span class="nav-icon">💸</span>
+                        <span class="nav-text">Fines</span>
+                    </a>
+                    <a href="{{ url_for('index') }}" class="nav-link active">
+                        <span class="nav-icon">🔍</span>
+                        <span class="nav-text">Query</span>
+                    </a>
+                    {% elif role == 'Faculty' %}
+                    <a href="{{ url_for('dashboard.faculty_dashboard') }}" class="nav-link">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">Dashboard</span>
+                    </a>
+                    <a href="{{ url_for('views.students_view') }}" class="nav-link">
+                        <span class="nav-icon">👥</span>
+                        <span class="nav-text">Students</span>
+                    </a>
+                    <a href="{{ url_for('views.issued_books_view') }}" class="nav-link">
+                        <span class="nav-icon">📖</span>
+                        <span class="nav-text">Issued Books</span>
+                    </a>
+                    <a href="{{ url_for('views.fine_management_view') }}" class="nav-link">
+                        <span class="nav-icon">💸</span>
+                        <span class="nav-text">Fines</span>
+                    </a>
+                    <a href="{{ url_for('index') }}" class="nav-link active">
+                        <span class="nav-icon">🔍</span>
+                        <span class="nav-text">Query</span>
+                    </a>
+                    {% elif role == 'Administrator' %}
+                    <a href="{{ url_for('dashboard.admin_dashboard') }}" class="nav-link">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">Dashboard</span>
+                    </a>
+                    <a href="{{ url_for('views.students_view') }}" class="nav-link">
+                        <span class="nav-icon">👥</span>
+                        <span class="nav-text">Students</span>
+                    </a>
+                    <a href="{{ url_for('views.issued_books_view') }}" class="nav-link">
+                        <span class="nav-icon">📖</span>
+                        <span class="nav-text">Issued Books</span>
+                    </a>
+                    <a href="{{ url_for('views.fine_management_view') }}" class="nav-link">
+                        <span class="nav-icon">💸</span>
+                        <span class="nav-text">Fines</span>
+                    </a>
+                    <a href="{{ url_for('views.analytics') }}" class="nav-link">
+                        <span class="nav-icon">📈</span>
+                        <span class="nav-text">Analytics</span>
+                    </a>
+                    <a href="{{ url_for('user_management_view') }}" class="nav-link">
+                        <span class="nav-icon">👤</span>
+                        <span class="nav-text">User Management</span>
+                    </a>
+                    <a href="{{ url_for('system_statistics_view') }}" class="nav-link">
+                        <span class="nav-icon">🖥️</span>
+                        <span class="nav-text">System Statistics</span>
+                    </a>
+                    <a href="{{ url_for('index') }}" class="nav-link active">
+                        <span class="nav-icon">🔍</span>
+                        <span class="nav-text">Query</span>
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+        </aside>
+
+        <!-- ===== MAIN CONTENT ===== -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="content-header">
+                <div class="header-content">
+                    <div>
+                        <h1 class="page-title">Welcome back, {{ user }} 👋</h1>
+                        <p class="page-subtitle">
+                            {% if page_title %}{{ page_title }} — {% endif %}Your NLP-powered database query assistant is ready
+                        </p>
+                    </div>
+                    <div class="header-stats">
+                        <div class="stat-item">
+                            <span class="stat-number">12</span>
+                            <span class="stat-label">Queries Today</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">3</span>
+                            <span class="stat-label">Active Sessions</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Role-specific Dashboard Panel -->
+            {% if role == 'Student' %}
+            <section class="dashboard-panel student-panel">
+                <div class="section-header">
+                    <h2 class="section-title">🎓 My Library Dashboard</h2>
+                    <a href="{{ url_for('dashboard.student_dashboard') }}" class="btn-secondary" style="font-size:0.85rem;padding:0.4rem 0.9rem;">Full Dashboard ↗</a>
+                </div>
+                <div class="widget-grid">
+                    <div class="widget-card widget-blue">
+                        <div class="widget-icon">📚</div>
+                        <div class="widget-value">{{ dashboard_data.get('current_books', [])|length }}</div>
+                        <div class="widget-label">Books Borrowed</div>
+                    </div>
+                    <div class="widget-card widget-red">
+                        <div class="widget-icon">⚠️</div>
+                        <div class="widget-value">{{ dashboard_data.get('overdue_count', 0) }}</div>
+                        <div class="widget-label">Overdue Books</div>
+                    </div>
+                    <div class="widget-card widget-orange">
+                        <div class="widget-icon">💸</div>
+                        <div class="widget-value">{{ dashboard_data.get('unpaid_fines', 0) }}</div>
+                        <div class="widget-label">Unpaid Fines</div>
+                    </div>
+                </div>
+                {% if dashboard_data.get('current_books') %}
+                <div class="widget-table-wrap">
+                    <p class="widget-table-title">📖 Currently Borrowed</p>
+                    <table class="widget-table">
+                        <thead><tr><th>Title</th><th>Author</th><th>Due Date</th></tr></thead>
+                        <tbody>
+                        {% for book in dashboard_data.get('current_books', []) %}
+                        <tr>
+                            <td>{{ book.get('title', '-') }}</td>
+                            <td>{{ book.get('author', '-') }}</td>
+                            <td>{{ book.get('due_date', '-') }}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </section>
+
+            {% elif role in ('Librarian', 'Faculty', 'Administrator') %}
+            <section class="dashboard-panel {% if role == 'Administrator' %}admin-panel{% else %}librarian-panel{% endif %}">
+                <div class="section-header">
+                    {% if role == 'Administrator' %}
+                    <h2 class="section-title">🛡️ System Administration</h2>
+                    <a href="{{ url_for('dashboard.admin_dashboard') }}" class="btn-secondary" style="font-size:0.85rem;padding:0.4rem 0.9rem;">Full Dashboard</a>
+                    {% else %}
+                    <h2 class="section-title">📋 Library Management Overview</h2>
+                    <a href="{{ url_for('dashboard.librarian_dashboard') if role == 'Librarian' else url_for('dashboard.faculty_dashboard') }}" class="btn-secondary" style="font-size:0.85rem;padding:0.4rem 0.9rem;">Full Dashboard ↗</a>
+                    {% endif %}
+                </div>
+                <div class="widget-grid">
+                    <div class="widget-card widget-blue">
+                        <div class="widget-icon">📚</div>
+                        <div class="widget-value">{{ dashboard_data.get('total_books', 0) }}</div>
+                        <div class="widget-label">Total Books</div>
+                    </div>
+                    <div class="widget-card widget-green">
+                        <div class="widget-icon">🎓</div>
+                        <div class="widget-value">{{ dashboard_data.get('total_students', 0) }}</div>
+                        <div class="widget-label">Students</div>
+                    </div>
+                    <div class="widget-card widget-purple">
+                        <div class="widget-icon">📤</div>
+                        <div class="widget-value">{{ dashboard_data.get('active_issues', 0) }}</div>
+                        <div class="widget-label">Active Issues</div>
+                    </div>
+                    <div class="widget-card widget-orange">
+                        <div class="widget-icon">💸</div>
+                        <div class="widget-value">{{ dashboard_data.get('unpaid_fines', 0) }}</div>
+                        <div class="widget-label">Unpaid Fines</div>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- Query Section -->
+            <section class="query-section">
+                <div class="section-header">
+                    <h2 class="section-title floating-icon">🔍 Ask me anything about your library</h2>
+                    <p class="section-subtitle">I'll help you find exactly what you need</p>
+                </div>
+                
+                <div class="query-container">
+                    <div style="position:relative">
+                        <textarea 
+                            id="queryInput" 
+                            class="query-input search-input-enhanced" 
+                            placeholder="Try: 'show my fines' or 'find books by author' or 'students with GPA above 3.5'"
+                            rows="4"
+                            autocomplete="off"
+                        >{{ prefill_query or '' }}</textarea>
+                        <ul id="querySuggestions" style="
+                            display:none; position:absolute; top:100%; left:0; right:0;
+                            background:#fff; border:1px solid #c5d8f5; border-radius:0 0 8px 8px;
+                            list-style:none; margin:0; padding:0; z-index:999;
+                            box-shadow:0 4px 12px rgba(0,0,0,.15); max-height:220px; overflow-y:auto;">
+                        </ul>
+                    </div>
+                    
+                    <div class="query-actions">
+                        <button id="queryBtn" class="btn-primary btn-interactive">
+                            <span class="floating-icon">🚀</span>
+                            Execute Query
+                        </button>
+                        <button id="clearBtn" class="btn-secondary btn-interactive">
+                            <span class="floating-icon">🗑️</span>
+                            Clear
+                        </button>
+                        <button id="voiceBtn" class="btn-secondary btn-interactive" type="button" title="Push to talk">
+                            <span class="floating-icon">🎤</span>
+                            Voice Input
+                        </button>
+                    </div>
+                    <div id="voiceStatus" class="voice-status" aria-live="polite"></div>
+                </div>
+            </section>
+
+            <!-- Clarification Card (shown when backend asks for user choice) -->
+            <section class="clarification-card" id="clarificationCard" style="display: none;">
+                <div class="section-header">
+                    <h2 class="section-title">🤔 Clarify Your Query</h2>
+                </div>
+                <div class="clarification-body">
+                    <p id="clarificationQuestion" class="clarification-question"></p>
+                    <div id="clarificationOptions" class="clarification-options"></div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section class="results-section" id="resultsSection" style="display: none;">
+                <div class="section-header">
+                    <h2 class="section-title">📊 Query Results</h2>
+                    <div class="result-actions">
+                        <div id="resultBadges" class="result-badges"></div>
+                        <button id="exportBtn" class="btn-secondary">📥 Export</button>
+                        <button id="visualizeBtn" class="btn-primary">📈 Visualize</button>
+                    </div>
+                </div>
+                
+                <div class="results-container">
+                    <div class="query-info">
+                        <span class="query-text" id="queryText"></span>
+                        <div class="sql-section" id="sqlSection" style="display:none;">
+                            <span class="sql-label">🧾 Generated SQL</span>
+                            <code class="query-sql" id="sqlCode"></code>
+                        </div>
+                    </div>
+                    <div id="noResults" style="display:none; padding: 1rem; color: #aaa;">No results found.</div>
+                    <div class="table-container">
+                        <table class="results-table" id="resultsTable">
+                            <thead id="tableHead"></thead>
+                            <tbody id="tableBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="chartsGrid"></div>
+                </div>
+            </section>
+
+            <!-- Visualization Section -->
+            <section class="visualization-section" id="visualizationSection" style="display: none;">
+                <div class="section-header">
+                    <h2 class="section-title">📈 Data Visualization</h2>
+                    <div class="viz-controls">
+                        <select id="chartType" class="chart-select">
+                            <option value="bar">Bar Chart</option>
+                            <option value="line">Line Chart</option>
+                            <option value="pie">Pie Chart</option>
+                            <option value="doughnut">Doughnut Chart</option>
+                        </select>
+                        <button id="updateVizBtn" class="btn-update">Update Chart</button>
+                    </div>
+                </div>
+                
+                <div class="chart-container" id="chartContainer">
+                    <canvas id="dataChart"></canvas>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Processing your query...</p>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Debug Result Box -->
+    <div id="result" style="display:none; margin: 20px; padding: 10px; background: #f8f9fa; color: #000000; border-radius: 5px;"></div>
+
+    </body>
+
+</html>

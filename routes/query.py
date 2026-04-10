@@ -1,0 +1,309 @@
+"""
+NL-to-SQL query pipeline route for SPEAK2DB.
+"""
+import logging
+import time
+from flask import Blueprint, request, jsonify, session, redirect, url_for
+
+from db.connection import get_db_connection, MAIN_DB
+from utils.constants import DEFAULT_QUERY_LIMIT
+from utils.sql_safety import (
+    is_safe_sql,
+    apply_student_filters,
+    enforce_student_filter,
+    enforce_student_context,
+    validate_sql_query,
+    fallback_columns,
+    ensure_limit,
+)
+
+try:
+    from domain_vocabulary import preprocess_query
+    _VOCAB_AVAILABLE = True
+except ImportError:
+    _VOCAB_AVAILABLE = False
+
+try:
+    from clarification import is_vague_query, get_clarification, apply_clarification_choice
+    _CLARIF_AVAILABLE = True
+except ImportError:
+    _CLARIF_AVAILABLE = False
+
+try:
+    from query_correction import correct_query
+    _CORRECT_AVAILABLE = True
+except ImportError:
+    _CORRECT_AVAILABLE = False
+
+try:
+    from query_context import save_context, is_followup, rewrite_followup, get_last_query
+    _CONTEXT_AVAILABLE = True
+except ImportError:
+    _CONTEXT_AVAILABLE = False
+
+try:
+    from rbac_system_fixed import rbac, apply_row_level_filter
+    _RBAC_AVAILABLE = True
+except ImportError:
+    _RBAC_AVAILABLE = False
+
+try:
+    from security_layer import validate_sql as security_validate_sql, validate_sql_query
+    _SECURITY_LAYER_AVAILABLE = True
+except ImportError:
+    _SECURITY_LAYER_AVAILABLE = False
+
+try:
+    from ollama_sql import generate_sql
+    _OLLAMA_AVAILABLE = True
+except ImportError:
+    _OLLAMA_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
+
+query_bp = Blueprint("query", __name__)
+
+
+@query_bp.route("/query", methods=["POST"])
+def query():
+    """NL-to-SQL query pipeline (10 steps).
+
+    1.  Spell correction
+    2.  Context follow-up detection & rewrite
+    3.  Clarification detection (vague query → ask user)
+    4.  Apply clarification choice when provided
+    5.  Vocabulary preprocessing (schema hints)
+    6.  SQL generation via Ollama (with fallback on failure)
+    7.  Student-specific SQL rewriting / row-level filtering
+    8.  SQL safety gate (SELECT-only, no DDL/write keywords)
+    9.  RBAC table-access validation
+    10. Execute & return results
+    """
+    logger.info("Query received – processing request")
+
+    if "user_id" not in session:
+        logger.warning("Query attempted without active session")
+        return jsonify({"success": False, "error": "Not logged in"}), 401
+
+    try:
+        _query_start = time.time()
+
+        data = request.get_json()
+        user_query = data.get("query", "").strip()
+        clarification_choice = data.get("clarification_choice", "").strip()
+        logger.info("Query text: %s", user_query)
+
+        user_role = session.get("role", "Student")
+        student_id = session.get("student_id")
+        logger.info("User role: %s, Student ID: %s", user_role, student_id)
+
+        if not user_query:
+            return jsonify({"success": False, "error": "No query provided"}), 400
+
+        # ── Step 1: Spell correction ─────────────────────────────────────────
+        if _CORRECT_AVAILABLE:
+            corrected = correct_query(user_query)
+            if corrected != user_query:
+                logger.info("[SPELL FIX] %s", corrected)
+            user_query = corrected
+
+        # ── Step 2: Context follow-up detection & rewrite ────────────────────
+        logger.debug("[CONTEXT] previous query: %s", session.get("last_query"))
+        if _CONTEXT_AVAILABLE and is_followup(user_query):
+            last_q = get_last_query(session)
+            if last_q:
+                user_query = rewrite_followup(user_query, last_q)
+                logger.info("[CONTEXT REWRITE] %s", user_query)
+
+        # ── Steps 3 & 4: Advanced Clarification chatbot ──────────────────────
+        if clarification_choice:
+            if _CLARIF_AVAILABLE:
+                user_query = apply_clarification_choice(user_query, clarification_choice)
+            logger.info("Clarification applied: %s", user_query)
+        else:
+            # Try advanced ambiguity detection first
+            try:
+                from advanced_ambiguity import advanced_detector
+                ambiguity_analysis = advanced_detector.analyze_query_ambiguity(user_query, {
+                    'user_role': user_role,
+                    'student_id': student_id,
+                    'last_query': session.get("last_query")
+                })
+                
+                logger.info("Advanced ambiguity analysis: %s", ambiguity_analysis['ambiguity_level'])
+                
+                if ambiguity_analysis['is_ambiguous']:
+                    logger.info("Advanced ambiguity detected – returning enhanced clarification options")
+                    enhanced_clarif = advanced_detector.generate_clarification_response(user_query, ambiguity_analysis)
+                    
+                    # Update context
+                    advanced_detector.update_context(user_query, enhanced_clarif, 'clarification_triggered')
+                    
+                    return jsonify({
+                        "needs_clarification": True, 
+                        "clarification": enhanced_clarif,
+                        "ambiguity_level": ambiguity_analysis['ambiguity_level'],
+                        "confidence_score": ambiguity_analysis['confidence_score']
+                    })
+            except ImportError:
+                logger.warning("Advanced ambiguity detector not available, falling back to basic clarification")
+            
+            # Fallback to basic clarification
+            if _CLARIF_AVAILABLE:
+                clarif = get_clarification(user_query)
+                if clarif is not None:
+                    logger.info("Ambiguous query – returning clarification options")
+                    return jsonify({"needs_clarification": True, "clarification": clarif})
+
+        # ── Step 5: Vocabulary preprocessing ────────────────────────────────
+        augmented_query = user_query
+        if _VOCAB_AVAILABLE:
+            augmented_query = preprocess_query(user_query, MAIN_DB)
+            if augmented_query != user_query:
+                logger.info("[VOCABULARY HINTS] %s", augmented_query)
+
+        logger.debug("Connecting to database")
+        conn = get_db_connection(MAIN_DB)
+
+        # ── Step 6: Enhanced Student Query Processing ───────────────────────
+        # Check if this is a student-specific query first
+        try:
+            from enhanced_student_queries import enhanced_student_queries
+            student_query_result = enhanced_student_queries.execute_student_query(user_query, student_id)
+            
+            if student_query_result['success']:
+                logger.info("Student query processed successfully")
+                logger.info(f"Query type: {student_query_result['query_type']}")
+                logger.info(f"Student: {student_query_result['student_identifier']}")
+                logger.info(f"Identifier type: {student_query_result.get('identifier_type', 'unknown')}")
+                
+                # Save context
+                session["last_query"] = user_query
+                session["last_student_query"] = student_query_result['student_identifier']
+                
+                return jsonify({
+                    "success": True,
+                    "data": student_query_result['data'],
+                    "query_type": student_query_result['query_type'],
+                    "student_identifier": student_query_result['student_identifier'],
+                    "identifier_type": student_query_result.get('identifier_type', 'unknown'),
+                    "message": student_query_result['message'],
+                    "sql_used": student_query_result.get('sql_used', ''),
+                    "columns": student_query_result.get('columns', []),
+                    "is_student_query": True
+                })
+            else:
+                logger.warning(f"Student query failed: {student_query_result.get('error', 'Unknown error')}")
+                # Continue with normal query processing for non-student queries
+                
+        except ImportError:
+            logger.warning("Enhanced student queries not available, using normal processing")
+        except Exception as e:
+            logger.error(f"Error in student query processing: {e}")
+            # Continue with normal query processing
+
+        # ── Step 7: SQL generation via Ollama ────────────────────────────────
+        sql_query = ""
+        if _OLLAMA_AVAILABLE:
+            try:
+                sql_query = generate_sql(augmented_query)
+            except Exception as ollama_exc:
+                logger.error("LLM (Ollama) service error: %s", ollama_exc)
+                conn.close()
+                return jsonify({"success": False, "error": "LLM service not available"}), 500
+
+        if not sql_query or not sql_query.strip():
+            logger.warning("[FALLBACK SQL] generate_sql returned empty; no fallback provided")
+            return jsonify({"success": False, "error": "Unable to generate SQL from query"}), 400
+        logger.info("Generated SQL: %s", sql_query)
+
+        # Replace student ID placeholders emitted by the SQL generator.
+        # Convert to int first to prevent injection via malformed session data.
+        if user_role == "Student" and student_id:
+            try:
+                sql_query = sql_query.replace("[CURRENT_STUDENT_ID]", str(int(student_id)))
+            except (TypeError, ValueError):
+                logger.error("Invalid student_id in session: %r", student_id)
+
+        # ── Step 7: Student-specific SQL rewriting (enforce_student_context) ──
+        # Re-fetches student_id from the DB to guarantee correctness, strips
+        # any hardcoded student_id injected by the LLM, and rewrites personal
+        # ("my …") queries with safe, alias-correct SQL templates.
+        logger.debug("Role: %s | Student context enforcement: %s", user_role, student_id)
+        if user_role == "Student":
+            sql_query = enforce_student_context(sql_query, user_query, session, conn)
+
+        # ── Step 8: Security layer – validate_sql_query ──────────────────────
+        # Blocks DDL/DML, UNION injection, and table-access violations.
+        # Also injects any remaining per-student isolation filters.
+        if _SECURITY_LAYER_AVAILABLE:
+            allowed, sql_query, sec_error = validate_sql_query(
+                sql_query, user_role, student_id
+            )
+            if not allowed:
+                logger.warning("Security layer blocked query: %s", sec_error)
+                conn.close()
+                return jsonify({"success": False, "error": "Access Denied"}), 400
+
+        # ── Step 9: Role-based SQL validation ────────────────────────────────
+        if not validate_sql_query(sql_query, user_role):
+            logger.warning("validate_sql_query blocked query for role=%s: %s", user_role, sql_query)
+            conn.close()
+            return jsonify({"success": False, "error": "Access Denied"}), 403
+
+        # ── Enforce LIMIT to cap result sets ─────────────────────────────────
+        sql_query = ensure_limit(sql_query, DEFAULT_QUERY_LIMIT)
+
+        # ── Step 10: RBAC table-access validation ────────────────────────────
+        if _RBAC_AVAILABLE:
+            user_id_for_rbac = session.get("user_id", "")
+            ok, msg = rbac.validate_query_access(user_id_for_rbac, sql_query)
+            if not ok:
+                logger.warning("RBAC denied: %s", msg)
+                conn.close()
+                return jsonify({"success": False, "error": f"Access denied: {msg}"}), 403
+
+            if user_role == "Student" and student_id:
+                sql_query = apply_row_level_filter(str(student_id), sql_query)
+
+        logger.info("[EXECUTING SQL] %s", sql_query)
+        results = conn.execute(sql_query).fetchall()
+        conn.close()
+
+        rows = [dict(row) for row in results]
+
+        session["last_query"] = user_query
+        session["last_sql"] = sql_query
+
+        columns = list(rows[0].keys()) if rows else fallback_columns(sql_query)
+
+        logger.info("Returning %d rows with columns: %s", len(rows), columns)
+
+        if _CONTEXT_AVAILABLE:
+            save_context(session, user_query, sql_query)
+
+        elapsed = round(time.time() - _query_start, 4)
+        return jsonify(
+            {
+                "success": True,
+                "data": rows,
+                "columns": columns,
+                "sql": sql_query,
+                "database": MAIN_DB,
+                "user_role": user_role,
+                "student_id": student_id,
+                "elapsed_seconds": elapsed,
+            }
+        )
+
+    except Exception as exc:
+        logger.error("Query execution failed: %s", exc, exc_info=True)
+        return jsonify({"success": False, "error": f"Query execution failed: {str(exc)}"}), 500
+
+
+@query_bp.route("/query", methods=["GET"])
+def query_page():
+    """Redirect GET /query to main dashboard (query console is on the main page)."""
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    return redirect(url_for("index"))

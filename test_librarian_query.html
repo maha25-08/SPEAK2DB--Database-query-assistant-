@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Librarian Query Test</title>
+    <script>
+        // Simple test function to verify click works
+        function submitLibrarianQuery() {
+            console.log("clicked - submitLibrarianQuery function called");
+            
+            const query = document.getElementById("librarianQueryInput").value;
+            console.log("Query input value:", query);
+            
+            if (!query || query.trim() === '') {
+                console.log("Empty query detected");
+                alert("Please enter a query first");
+                return;
+            }
+            
+            // Disable button
+            var runBtn = document.getElementById('librarianQueryBtn');
+            if (runBtn) {
+                runBtn.disabled = true;
+                runBtn.innerHTML = 'Processing...';
+            }
+            
+            // Make fetch request
+            fetch("/query", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ query: query })
+            })
+            .then(response => {
+                console.log("Response received:", response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Response data:", data);
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                
+                // Display results
+                displayLibrarianResults(data);
+                
+            })
+            .catch(error => {
+                console.error('Query error:', error);
+                alert('Failed to process query: ' + error.message);
+            })
+            .finally(() => {
+                // Re-enable button
+                var runBtn = document.getElementById('librarianQueryBtn');
+                if (runBtn) {
+                    runBtn.disabled = false;
+                    runBtn.innerHTML = 'Run Query';
+                }
+            });
+        }
+        
+        function displayLibrarianResults(data) {
+            console.log("Displaying results:", data);
+            
+            const resultsSection = document.getElementById("librarianResultsSection");
+            const rowCountBadge = document.getElementById("librarianRowCountBadge");
+            const tableHead = document.getElementById("librarianTableHead");
+            const tableBody = document.getElementById("librarianTableBody");
+            const noResults = document.getElementById("librarianNoResults");
+            
+            if (data.results && Array.isArray(data.results) && data.results.length > 0) {
+                // Display tabular results
+                rowCountBadge.textContent = data.results.length + ' rows';
+                
+                // Build table header
+                const headers = Object.keys(data.results[0]);
+                tableHead.innerHTML = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+                
+                // Build table body
+                tableBody.innerHTML = data.results.map(row => 
+                    '<tr>' + headers.map(h => `<td>${row[h] !== null ? row[h].toString() : ''}</td>`).join('') + '</tr>'
+                ).join('');
+                
+                resultsSection.style.display = 'block';
+                noResults.style.display = 'none';
+            } else {
+                // No results
+                resultsSection.style.display = 'block';
+                tableHead.innerHTML = '';
+                tableBody.innerHTML = '';
+                noResults.style.display = 'block';
+                rowCountBadge.textContent = '0 rows';
+            }
+        }
+        
+        function clearLibrarianQuery() {
+            document.getElementById('librarianQueryInput').value = '';
+            document.getElementById('librarianResultsSection').style.display = 'none';
+        }
+    </script>
+</head>
+<body>
+    <h1>Librarian Query Test</h1>
+    
+    <div class="query-section mb-3" id="librarianQuerySection">
+        <h6>Natural Language Query</h6>
+        <div class="input-group mb-2">
+            <textarea id="librarianQueryInput" class="form-control" rows="2"
+                placeholder="e.g. 'show books by Russell' or 'how many books are available'"></textarea>
+        </div>
+        <div class="d-flex gap-2 mt-2">
+            <button id="librarianQueryBtn" class="btn btn-primary btn-sm" onclick="submitLibrarianQuery()">
+                Run Query
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="clearLibrarianQuery()">
+                Clear
+            </button>
+        </div>
+        
+        <!-- Results -->
+        <div id="librarianResultsSection" style="display:none">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <span class="badge bg-primary" id="librarianRowCountBadge"></span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover results-table">
+                    <thead id="librarianTableHead"></thead>
+                    <tbody id="librarianTableBody"></tbody>
+                </table>
+            </div>
+            <div id="librarianNoResults" style="display:none">No results found.</div>
+        </div>
+    </div>
+</body>
+</html>

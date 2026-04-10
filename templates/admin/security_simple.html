@@ -1,0 +1,132 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Security Management{% endblock %}
+
+{% block page_title %}Security Management{% endblock %}
+
+{% block content %}
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-0">Security Management</h4>
+        <p style="color: var(--text-secondary);">Monitor and manage system security</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#blockIpModal">
+        <i class="fas fa-ban me-2"></i>Block IP
+    </button>
+</div>
+
+<!-- Block IP Modal -->
+<div class="modal fade" id="blockIpModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Block IP Address</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin_security.block_ip_route') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">IP Address</label>
+                        <input type="text" class="form-control" name="ip_address" placeholder="Enter IP address" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reason</label>
+                        <textarea class="form-control" name="reason" rows="3" placeholder="Enter reason for blocking" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Block IP</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Blocked IPs -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Blocked IPs</h5>
+                <span class="badge bg-danger">{{ blocked_ips|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if blocked_ips %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>IP Address</th>
+                                <th>Reason</th>
+                                <th>Blocked At</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ip in blocked_ips %}
+                            <tr>
+                                <td><code>{{ ip.ip_address }}</code></td>
+                                <td>{{ ip.reason }}</td>
+                                <td>{{ ip.blocked_at }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No blocked IPs found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Events -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Security Events</h5>
+                <span class="badge bg-warning">{{ security_events|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if security_events %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for event in security_events %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-info">{{ event.event_type }}</span>
+                                </td>
+                                <td>{{ event.description }}</td>
+                                <td>{{ event.timestamp }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No security events found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

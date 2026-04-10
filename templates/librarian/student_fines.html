@@ -1,0 +1,174 @@
+{% extends "librarian/base_librarian.html" %}
+
+{% block title %}Student Fines - {{ student.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Student Info Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-user me-2"></i>Student Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Name:</strong><br>
+                            {{ student.name }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Roll Number:</strong><br>
+                            {{ student.roll_number }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Email:</strong><br>
+                            {{ student.email }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Branch:</strong><br>
+                            {{ student.branch }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fines Summary -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">${{ "%.2f"|format(total_unpaid) }}</h4>
+                                    <p class="mb-0">Unpaid Fines</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="mb-0">${{ "%.2f"|format(total_paid) }}</h4>
+                                    <p class="mb-0">Paid Fines</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-check-circle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fines Table -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>Fine History</h5>
+                    <a href="{{ url_for('librarian.manage_fines') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Back to All Fines
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if fines %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Fine ID</th>
+                                        <th>Book</th>
+                                        <th>Amount</th>
+                                        <th>Issue Date</th>
+                                        <th>Status</th>
+                                        <th>Payment Date</th>
+                                        <th>Payment Method</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for fine in fines %}
+                                    <tr>
+                                        <td>{{ fine.id }}</td>
+                                        <td>{{ fine.book_title or 'General Fine' }}</td>
+                                        <td><span class="badge bg-warning text-dark">${{ "%.2f"|format(fine.fine_amount) }}</span></td>
+                                        <td>{{ fine.issue_date }}</td>
+                                        <td>
+                                            {% if fine.status == 'Unpaid' %}
+                                                <span class="badge bg-danger">Unpaid</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Paid</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ fine.payment_date or '-' }}</td>
+                                        <td>{{ fine.payment_method or '-' }}</td>
+                                        <td>
+                                            {% if fine.status == 'Unpaid' %}
+                                                <form method="POST" action="{{ url_for('librarian.pay_fine', fine_id=fine.id) }}" 
+                                                      class="d-inline">
+                                                    <div class="input-group input-group-sm">
+                                                        <select name="payment_method" class="form-select" required>
+                                                            <option value="Cash">Cash</option>
+                                                            <option value="Card">Card</option>
+                                                            <option value="Online">Online</option>
+                                                        </select>
+                                                        <button type="submit" class="btn btn-success btn-sm" 
+                                                                title="Mark as Paid">
+                                                            <i class="fas fa-check"></i>
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            {% else %}
+                                                <button class="btn btn-sm btn-secondary" disabled>
+                                                    <i class="fas fa-check"></i> Paid
+                                                </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <h5 class="text-muted">No Fines Found</h5>
+                            <p class="text-muted">This student has no fines in their record.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    
+    .table th {
+        border-top: none;
+        font-weight: 600;
+    }
+    
+    .badge {
+        font-size: 0.9em;
+    }
+    
+    .input-group-sm {
+        max-width: 200px;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+    }
+</style>
+{% endblock %}

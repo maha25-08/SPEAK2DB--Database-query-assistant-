@@ -1,0 +1,389 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}User Management{% endblock %}
+
+{% block page_title %}User Management{% endblock %}
+
+{% block content %}
+<style>
+.badge-role-administrator {
+    background-color: var(--danger-btn);
+}
+.badge-role-librarian {
+    background-color: var(--warning-btn);
+}
+.badge-role-faculty {
+    background-color: var(--secondary-btn);
+}
+.badge-role-student {
+    background-color: var(--primary-btn);
+}
+</style>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-0">Manage Users</h4>
+        <p style="color: var(--text-secondary);">Add, edit, and manage system users</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+        <i class="fas fa-plus me-2"></i>Add New User
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title">All Users</h5>
+        <div class="d-flex gap-2">
+            <input type="text" class="form-control form-control-sm" placeholder="Search users..." id="searchInput" style="max-width: 300px;">
+            <select class="form-select form-select-sm" id="roleFilter" style="max-width: 150px;">
+                <option value="">All Roles</option>
+                <option value="Student">Student</option>
+                <option value="Faculty">Faculty</option>
+                <option value="Librarian">Librarian</option>
+                <option value="Administrator">Administrator</option>
+            </select>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="usersTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Profile Info</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr data-role="{{ user.role }}">
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.name }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            <span class="badge badge-role-{{ user.role|lower }}">{{ user.role }}</span>
+                        </td>
+                        <td class="small">
+                            {% if user.roll_number %}Roll: {{ user.roll_number }}<br>{% endif %}
+                            {% if user.branch %}{{ user.branch }}{% endif %}
+                            {% if user.year %} / Y{{ user.year }}{% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button class="btn btn-outline-primary" onclick="editUser({{ user.id }})" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary" onclick="changeUserRole({{ user.id }})" title="Change Role">
+                                    <i class="fas fa-user-lock"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteUser({{ user.id }}, '{{ user.username|replace("'", "\\'") }}')" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            <i class="fas fa-users fa-3x mb-3" style="color: var(--text-secondary);"></i>
+                            <div>No users found.</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin_users.add_user') }}">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Username / Roll No.</label>
+                            <input type="text" class="form-control" name="username" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-control" name="password" placeholder="Leave empty for default">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Role</label>
+                            <select class="form-select" name="role" required onchange="toggleRoleFields(this.value)">
+                                <option value="">Select Role</option>
+                                <option value="Student">Student</option>
+                                <option value="Faculty">Faculty</option>
+                                <option value="Librarian">Librarian</option>
+                                <option value="Administrator">Administrator</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" class="form-control" name="phone">
+                        </div>
+                        
+                        <!-- Student Fields -->
+                        <div id="studentFields" style="display: none;" class="col-12">
+                            <h6 class="text-primary mb-3">Student Information</h6>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Branch</label>
+                                    <input type="text" class="form-control" name="branch">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Year</label>
+                                    <select class="form-select" name="year">
+                                        <option value="">Select Year</option>
+                                        <option value="1">1st Year</option>
+                                        <option value="2">2nd Year</option>
+                                        <option value="3">3rd Year</option>
+                                        <option value="4">4th Year</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Department</label>
+                                    <input type="text" class="form-control" name="department">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Faculty/Librarian Fields -->
+                        <div id="facultyFields" style="display: none;" class="col-12">
+                            <h6 class="text-primary mb-3">Faculty Information</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Department</label>
+                                    <input type="text" class="form-control" name="department">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Designation</label>
+                                    <input type="text" class="form-control" name="designation">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Add User
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="editUserForm">
+                <div class="modal-body">
+                    <input type="hidden" name="user_id" id="editUserId">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-control" name="username" id="editUsername" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" class="form-control" name="name" id="editName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" id="editEmail" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">New Password</label>
+                            <input type="password" class="form-control" name="password" placeholder="Leave empty to keep current">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" class="form-control" name="phone" id="editPhone">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Department</label>
+                            <input type="text" class="form-control" name="department" id="editDepartment">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Update User
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Change Role Modal -->
+<div class="modal fade" id="changeRoleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Change User Role</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="changeRoleForm">
+                <div class="modal-body">
+                    <input type="hidden" name="user_id" id="roleUserId">
+                    <div class="mb-3">
+                        <label class="form-label">Current Role</label>
+                        <input type="text" class="form-control" id="currentRole" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">New Role</label>
+                        <select class="form-select" name="role" required>
+                            <option value="">Select New Role</option>
+                            <option value="Student">Student</option>
+                            <option value="Faculty">Faculty</option>
+                            <option value="Librarian">Librarian</option>
+                            <option value="Administrator">Administrator</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Changing role will update user permissions and may affect profile data.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-user-lock me-2"></i>Change Role
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleRoleFields(role) {
+        const studentFields = document.getElementById('studentFields');
+        const facultyFields = document.getElementById('facultyFields');
+        
+        if (role === 'Student') {
+            studentFields.style.display = 'block';
+            facultyFields.style.display = 'none';
+        } else if (role === 'Faculty' || role === 'Librarian') {
+            studentFields.style.display = 'none';
+            facultyFields.style.display = 'block';
+        } else {
+            studentFields.style.display = 'none';
+            facultyFields.style.display = 'none';
+        }
+    }
+
+    function editUser(userId) {
+        // Fetch user data and populate edit form
+        fetch(`/admin/users/${userId}/edit`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('editUserId').value = data.user.id;
+                    document.getElementById('editUsername').value = data.user.username;
+                    document.getElementById('editName').value = data.user.name;
+                    document.getElementById('editEmail').value = data.user.email;
+                    document.getElementById('editPhone').value = data.user.phone || '';
+                    document.getElementById('editDepartment').value = data.user.department || '';
+                    document.getElementById('editUserForm').action = `/admin/users/${userId}/update`;
+                    
+                    const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
+                    modal.show();
+                } else {
+                    alert('Error loading user data');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading user data');
+            });
+    }
+
+    function changeUserRole(userId) {
+        // Fetch user data and populate role change form
+        fetch(`/admin/users/${userId}/edit`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('roleUserId').value = data.user.id;
+                    document.getElementById('currentRole').value = data.user.role;
+                    document.getElementById('changeRoleForm').action = `/admin/users/${userId}/change_role`;
+                    
+                    const modal = new bootstrap.Modal(document.getElementById('changeRoleModal'));
+                    modal.show();
+                } else {
+                    alert('Error loading user data');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading user data');
+            });
+    }
+
+    function deleteUser(userId, username) {
+        if (confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/admin/users/${userId}/delete`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    // Search functionality
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('#usersTable tbody tr');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchTerm) ? '' : 'none';
+        });
+    });
+
+    // Role filter functionality
+    document.getElementById('roleFilter').addEventListener('change', function(e) {
+        const selectedRole = e.target.value;
+        const rows = document.querySelectorAll('#usersTable tbody tr[data-role]');
+        
+        rows.forEach(row => {
+            if (!selectedRole || row.dataset.role === selectedRole) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+</script>
+{% endblock %}
